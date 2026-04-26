@@ -1,0 +1,1 @@
+完成一個 task 就建立一個 git commit
