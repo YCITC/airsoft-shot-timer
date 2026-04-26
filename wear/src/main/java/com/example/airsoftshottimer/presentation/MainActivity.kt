@@ -9,436 +9,244 @@ import android.hardware.SensorEventListener
 import android.hardware.SensorManager
 import android.media.AudioFormat
 import android.media.AudioRecord
-import android.media.MediaPlayer
 import android.media.MediaRecorder
+import android.os.Build
 import android.os.Bundle
 import android.os.Handler
 import android.os.Looper
+import android.os.VibrationEffect
+import android.os.Vibrator
+import android.os.VibratorManager
 import android.util.Log
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.activity.result.contract.ActivityResultContracts
-import androidx.compose.foundation.layout.Arrangement
-import androidx.compose.foundation.layout.Column
+import androidx.activity.viewModels
+import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.pager.HorizontalPager
+import androidx.compose.foundation.pager.rememberPagerState
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.DisposableEffect
-import androidx.compose.runtime.getValue
-import androidx.compose.runtime.mutableStateOf
-import androidx.compose.runtime.remember
-import androidx.compose.runtime.setValue
-import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.platform.LocalContext
-import androidx.compose.ui.text.font.FontWeight
-import androidx.compose.ui.unit.sp
+import androidx.compose.ui.graphics.Color
 import androidx.core.app.ActivityCompat
-import androidx.wear.compose.material3.Button
-import androidx.wear.compose.material3.Text
 import androidx.wear.compose.ui.tooling.preview.WearPreviewDevices
-import com.example.airsoftshottimer.R
+import com.google.android.gms.wearable.Wearable
 import com.example.airsoftshottimer.presentation.theme.AirsoftShotTimerTheme
-import java.io.IOException
-import java.util.Random
-import kotlin.concurrent.timer
+import com.example.airsoftshottimer.presentation.pages.TimerPage
+import com.example.airsoftshottimer.presentation.pages.SettingsPage
+import com.example.airsoftshottimer.presentation.pages.ResetPage
 import kotlin.math.abs
 import kotlin.math.log10
 import kotlin.math.sqrt
 
-enum class TimerState { IDLE, DELAYING, RUNNING, STOPPED }
-enum class DetectionMode { MICROPHONE, ACCELEROMETER }
-
 class MainActivity : ComponentActivity() {
 
-    private var mediaPlayer: MediaPlayer? = null
+    private val viewModel: ShotTimerViewModel by viewModels()
     private var audioRecognizer: AudioRecognizer? = null
     private var accelerometerRecognizer: AccelerometerRecognizer? = null
+    private var startTime: Long = 0
 
-    private val requestPermissionLauncher = registerForActivityResult(
-        ActivityResultContracts.RequestPermission()
-    ) { isGranted: Boolean ->
-        if (isGranted) {
-            Log.d("MainActivity", "RECORD_AUDIO permission granted")
+    private fun sendShotTime(time: Double) {
+        val message = String.format("%.2f", time)
+        val messageClient = Wearable.getMessageClient(this)
+        Wearable.getNodeClient(this).connectedNodes.addOnSuccessListener { nodes ->
+            for (node in nodes) {
+                messageClient.sendMessage(node.id, "/shot_time", message.toByteArray())
+                    .addOnSuccessListener { Log.d("MainActivity", "Sent: $message") }
+            }
+        }
+    }
+
+    private fun getVibrator(): Vibrator {
+        return if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
+            val vibratorManager = getSystemService(Context.VIBRATOR_MANAGER_SERVICE) as VibratorManager
+            vibratorManager.defaultVibrator
         } else {
-            Log.w("MainActivity", "RECORD_AUDIO permission denied")
-            // Inform the user that microphone functionality will not work
+            @Suppress("DEPRECATION")
+            getSystemService(Context.VIBRATOR_SERVICE) as Vibrator
+        }
+    }
+
+    private fun performVibration(effect: VibrationEffect) {
+        try {
+            getVibrator().vibrate(effect)
+        } catch (e: Exception) {
+            Log.e("MainActivity", "Vibration failed: ${e.message}")
         }
     }
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
 
-        // Request RECORD_AUDIO permission at runtime
-        if (ActivityCompat.checkSelfPermission(
-                this,
-                Manifest.permission.RECORD_AUDIO
-            ) != PackageManager.PERMISSION_GRANTED
-        ) {
-            requestPermissionLauncher.launch(Manifest.permission.RECORD_AUDIO)
+        if (ActivityCompat.checkSelfPermission(this, Manifest.permission.RECORD_AUDIO) != PackageManager.PERMISSION_GRANTED) {
+            registerForActivityResult(ActivityResultContracts.RequestPermission()) {}.launch(Manifest.permission.RECORD_AUDIO)
         }
 
         setContent {
             WearApp(
-                onPlayBeep = { playBeep() },
-                onStartAudioRecognition = { onShotDetectedCallback ->
-                    if (ActivityCompat.checkSelfPermission(
-                            this,
-                            Manifest.permission.RECORD_AUDIO
-                        ) == PackageManager.PERMISSION_GRANTED
-                    ) {
-                        audioRecognizer = AudioRecognizer(this, onShotDetectedCallback)
-                        audioRecognizer?.startRecognition()
-                    } else {
-                        Log.w("MainActivity", "Cannot start audio recognition: permission not granted")
-                    }
-                },
-                onStopAudioRecognition = { audioRecognizer?.stopRecognition() },
-                onStartAccelerometerRecognition = { onShotDetectedCallback ->
-                    accelerometerRecognizer = AccelerometerRecognizer(this, onShotDetectedCallback)
-                    accelerometerRecognizer?.startRecognition()
-                },
-                onStopAccelerometerRecognition = { accelerometerRecognizer?.stopRecognition() },
-                onReleaseMediaPlayer = { releaseMediaPlayer() }
+                viewModel = viewModel,
+                onStartDetection = { startDetection() },
+                onStopDetection = { stopDetection() },
+                onSendTime = { sendShotTime(it) }
             )
         }
     }
 
-    private fun playBeep() {
-        // To play a real sound, ensure you have a 'beep.mp3' or 'beep.wav' file in res/raw/
-        // then uncomment the line below and replace R.raw.beep with your resource name.
-        // If you don't have a sound file yet, this will simply log the beep event.
-        Log.d("MainActivity", "Playing BEEP sound (placeholder)")
-        // Example if you have R.raw.beep:
-        // if (mediaPlayer == null) {
-        //     try {
-        //         mediaPlayer = MediaPlayer.create(applicationContext, R.raw.beep)
-        //         mediaPlayer?.apply {
-        //             setOnCompletionListener { mp -> mp.release(); mediaPlayer = null }
-        //             start()
-        //         }
-        //     } catch (e: Exception) {
-        //         Log.e("MainActivity", "Error playing beep sound: ${e.message}")
-        //     }
-        // } else {
-        //     mediaPlayer?.start()
-        // }
+    private fun startDetection() {
+        if (viewModel.detectionMode == DetectionMode.MICROPHONE) {
+            audioRecognizer = AudioRecognizer(this, viewModel.noiseThresholdDb) { stopAndSend() }
+            audioRecognizer?.startRecognition()
+        } else {
+            accelerometerRecognizer = AccelerometerRecognizer(this, viewModel.accelerationThreshold) { stopAndSend() }
+            accelerometerRecognizer?.startRecognition()
+        }
     }
 
-    private fun releaseMediaPlayer() {
-        mediaPlayer?.release()
-        mediaPlayer = null
-    }
-
-    override fun onDestroy() {
-        super.onDestroy()
-        releaseMediaPlayer()
+    private fun stopDetection() {
         audioRecognizer?.stopRecognition()
-        audioRecognizer = null
         accelerometerRecognizer?.stopRecognition()
-        accelerometerRecognizer = null
     }
-}
 
-@Composable
-fun WearApp(
-    onPlayBeep: () -> Unit,
-    onStartAudioRecognition: ((() -> Unit) -> Unit),
-    onStopAudioRecognition: () -> Unit,
-    onStartAccelerometerRecognition: ((() -> Unit) -> Unit),
-    onStopAccelerometerRecognition: () -> Unit,
-    onReleaseMediaPlayer: () -> Unit
-) {
-    val context = LocalContext.current
+    private fun stopAndSend() {
+        if (viewModel.timerState == TimerState.RUNNING) {
+            viewModel.timerState = TimerState.STOPPED
+            viewModel.elapsedTime = System.currentTimeMillis() - startTime
+            stopDetection()
+            
+            // 偵測到射擊時：發出雙擊震動
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
+                performVibration(VibrationEffect.createPredefined(VibrationEffect.EFFECT_DOUBLE_CLICK))
+            } else {
+                performVibration(VibrationEffect.createOneShot(200, VibrationEffect.DEFAULT_AMPLITUDE))
+            }
+            
+            sendShotTime(viewModel.elapsedTime / 1000.0)
+        }
+    }
 
-    var timerState by remember { mutableStateOf(TimerState.IDLE) }
-    var elapsedTime by remember { mutableStateOf(0L) }
-    var startTime by remember { mutableStateOf(0L) }
-    var detectionMode by remember { mutableStateOf(DetectionMode.ACCELEROMETER) } // Set to ACCELEROMETER for testing Task 5
+    @Composable
+    fun WearApp(
+        viewModel: ShotTimerViewModel,
+        onStartDetection: () -> Unit,
+        onStopDetection: () -> Unit,
+        onSendTime: (Double) -> Unit
+    ) {
+        val pagerState = rememberPagerState(pageCount = { 2 })
 
-    androidx.compose.runtime.LaunchedEffect(timerState) {
-        if (timerState == TimerState.RUNNING) {
-            try {
-                while (true) {
-                    elapsedTime = System.currentTimeMillis() - startTime
+        androidx.compose.runtime.LaunchedEffect(viewModel.timerState) {
+            if (viewModel.timerState == TimerState.RUNNING) {
+                startTime = System.currentTimeMillis()
+                while (viewModel.timerState == TimerState.RUNNING) {
+                    viewModel.elapsedTime = System.currentTimeMillis() - startTime
                     kotlinx.coroutines.delay(10)
                 }
-            } catch (e: Exception) {
-                Log.e("WearApp", "Timer loop error: ${e.message}", e)
             }
         }
-    }
 
-    DisposableEffect(Unit) {
-        onDispose { 
-            try {
-                onStopAudioRecognition()
-                onStopAccelerometerRecognition()
-                onReleaseMediaPlayer()
-            } catch (e: Exception) {
-                Log.e("WearApp", "Cleanup error: ${e.message}", e)
-            }
+        DisposableEffect(Unit) {
+            onDispose { onStopDetection() }
         }
-    }
 
-    AirsoftShotTimerTheme {
-        Column(
-            modifier = Modifier.fillMaxSize(),
-            verticalArrangement = Arrangement.Center,
-            horizontalAlignment = Alignment.CenterHorizontally
-        ) {
-            Text(
-                text = when (timerState) {
-                    TimerState.IDLE -> "START"
-                    TimerState.DELAYING -> "Delaying..."
-                    TimerState.RUNNING -> String.format("%.2f", elapsedTime / 1000.0) + "s"
-                    TimerState.STOPPED -> String.format("%.2f", elapsedTime / 1000.0) + "s"
-                },
-                fontSize = 48.sp,
-                fontWeight = FontWeight.Bold
-            )
-
-            Button(onClick = {
-                try {
-                    when (timerState) {
-                        TimerState.IDLE, TimerState.STOPPED -> {
-                            timerState = TimerState.DELAYING
-                            elapsedTime = 0L
-                            val delayMillis = kotlin.random.Random.nextLong(1000L, 3000L)
-
-                            Handler(Looper.getMainLooper()).postDelayed({
-                                try {
-                                    if (timerState == TimerState.DELAYING) {
-                                        onPlayBeep()
-                                        startTime = System.currentTimeMillis()
-                                        timerState = TimerState.RUNNING
-
-                                        when (detectionMode) {
-                                            DetectionMode.MICROPHONE -> {
-                                                onStartAudioRecognition { 
-                                                    if (timerState == TimerState.RUNNING) {
-                                                        timerState = TimerState.STOPPED
-                                                        elapsedTime = System.currentTimeMillis() - startTime
-                                                        onStopAudioRecognition()
-                                                        Log.d("WearApp", "Shot detected (Mic)!")
-                                                    }
-                                                }
-                                            }
-                                            DetectionMode.ACCELEROMETER -> {
-                                                onStartAccelerometerRecognition { 
-                                                    if (timerState == TimerState.RUNNING) {
-                                                        timerState = TimerState.STOPPED
-                                                        elapsedTime = System.currentTimeMillis() - startTime
-                                                        onStopAccelerometerRecognition()
-                                                        Log.d("WearApp", "Shot detected (Accel)!")
-                                                    }
-                                                }
-                                            }
-                                        }
-                                    }
-                                } catch (e: Exception) {
-                                    Log.e("WearApp", "Delayed execution crash: ${e.message}", e)
-                                    timerState = TimerState.IDLE
-                                }
-                            }, delayMillis)
-                        }
-                        TimerState.RUNNING -> {
-                            timerState = TimerState.STOPPED
-                            onStopAudioRecognition()
-                            onStopAccelerometerRecognition()
-                        }
-                        else -> {}
+        AirsoftShotTimerTheme {
+            HorizontalPager(
+                state = pagerState, 
+                modifier = Modifier.fillMaxSize().background(Color.Black)
+            ) { page ->
+                when (page) {
+                    0 -> TimerPage(viewModel) {
+                        handleButtonClick(viewModel, onStartDetection, onStopDetection)
                     }
-                } catch (e: Exception) {
-                    Log.e("WearApp", "Button click crash: ${e.message}", e)
+                    1 -> SettingsPage(viewModel)
                 }
-            }) {
-                Text(
-                    text = when (timerState) {
-                        TimerState.IDLE -> "START"
-                        TimerState.DELAYING -> "CANCEL"
-                        TimerState.RUNNING -> "STOP"
-                        TimerState.STOPPED -> "RESTART"
-                    }
-                )
             }
+        }
+    }
+
+    private fun handleButtonClick(viewModel: ShotTimerViewModel, onStart: () -> Unit, onStop: () -> Unit) {
+        when (viewModel.timerState) {
+            TimerState.IDLE, TimerState.STOPPED -> {
+                viewModel.timerState = TimerState.DELAYING
+                viewModel.elapsedTime = 0L
+                Handler(Looper.getMainLooper()).postDelayed({
+                    if (viewModel.timerState == TimerState.DELAYING) {
+                        viewModel.timerState = TimerState.RUNNING
+                        
+                        // 計時器啟動：發出強烈長震動 (代替 BEEP)
+                        performVibration(VibrationEffect.createOneShot(500, VibrationEffect.DEFAULT_AMPLITUDE))
+                        
+                        onStart()
+                    }
+                }, (1000..3000).random().toLong())
+            }
+            TimerState.RUNNING -> {
+                viewModel.timerState = TimerState.STOPPED
+                onStop()
+            }
+            TimerState.DELAYING -> viewModel.timerState = TimerState.IDLE
         }
     }
 }
 
 class AccelerometerRecognizer(
-    private val context: android.content.Context,
-    private val onShotDetected: () -> Unit,
-    private val accelerationThreshold: Float = 20.0f // Adjust this threshold based on testing
+    private val context: Context,
+    private val threshold: Float,
+    private val onShot: () -> Unit
 ) : SensorEventListener {
-
-    private var sensorManager: SensorManager? = null
-    private var accelerometer: Sensor? = null
-    private var isDetecting = false
-    private var lastAccelerationValue = 0f
-
-    companion object {
-        private const val TAG = "AccelRecognizer"
-    }
-
+    private var sensorManager = context.getSystemService(Context.SENSOR_SERVICE) as SensorManager
+    private var lastValue = 0f
     fun startRecognition() {
-        if (isDetecting) {
-            Log.d(TAG, "Accelerometer recognition already running.")
-            return
-        }
-
-        sensorManager = context.getSystemService(Context.SENSOR_SERVICE) as SensorManager
-        accelerometer = sensorManager?.getDefaultSensor(Sensor.TYPE_ACCELEROMETER)
-
-        if (accelerometer == null) {
-            Log.e(TAG, "Accelerometer not available on this device.")
-            return
-        }
-
-        sensorManager?.registerListener(
-            this,
-            accelerometer,
-            SensorManager.SENSOR_DELAY_FASTEST
-        )
-        isDetecting = true
-        Log.d(TAG, "Accelerometer recognition started.")
+        val accel = sensorManager.getDefaultSensor(Sensor.TYPE_ACCELEROMETER)
+        sensorManager.registerListener(this, accel, SensorManager.SENSOR_DELAY_FASTEST)
     }
-
-    fun stopRecognition() {
-        if (!isDetecting) return
-
-        sensorManager?.unregisterListener(this)
-        isDetecting = false
-        Log.d(TAG, "Accelerometer recognition stopped.")
-    }
-
+    fun stopRecognition() = sensorManager.unregisterListener(this)
     override fun onSensorChanged(event: SensorEvent?) {
-        if (event?.sensor?.type == Sensor.TYPE_ACCELEROMETER) {
-            val x = event.values[0]
-            val y = event.values[1]
-            val z = event.values[2]
-
-            // Calculate the magnitude of the acceleration vector
-            val currentAcceleration = sqrt(x * x + y * y + z * z)
-
-            if (lastAccelerationValue != 0f) {
-                val deltaAcceleration = abs(currentAcceleration - lastAccelerationValue)
-                Log.d(TAG, "Current Accel Delta: %.2f".format(deltaAcceleration))
-                if (deltaAcceleration > accelerationThreshold) {
-                    Log.d(TAG, "Shot detected! Accel Delta: %.2f".format(deltaAcceleration))
-                    Handler(Looper.getMainLooper()).post { onShotDetected() }
-                    // To prevent multiple detections from a single movement, stop temporarily
-                    // stopRecognition() // Will restart when timerState goes to RUNNING again
-                }
+        val current = sqrt(event!!.values[0] * event.values[0] + event.values[1] * event.values[1] + event.values[2] * event.values[2])
+        Log.v("AccelRecognizer", "Current Accel: $current")
+        if (lastValue != 0f) {
+            val delta = abs(current - lastValue)
+            if (delta > threshold) {
+                Log.d("AccelRecognizer", "Shot detected! Delta: $delta")
+                Handler(Looper.getMainLooper()).post { onShot() }
             }
-            lastAccelerationValue = currentAcceleration
         }
+        lastValue = current
     }
-
-    override fun onAccuracyChanged(sensor: Sensor?, accuracy: Int) {
-        // Not used for this simple detection
-    }
+    override fun onAccuracyChanged(s: Sensor?, a: Int) {}
 }
 
 class AudioRecognizer(
-    private val context: android.content.Context,
-    private val onShotDetected: () -> Unit,
-    private val noiseThresholdDb: Double = -35.0 // Adjusted threshold
+    private val context: Context,
+    private val threshold: Double,
+    private val onShot: () -> Unit
 ) {
-
     private var audioRecord: AudioRecord? = null
     private var isRecording = false
-    private val audioBufferSize = AudioRecord.getMinBufferSize(
-        SAMPLE_RATE,
-        CHANNEL_CONFIG,
-        AUDIO_FORMAT
-    )
-    private val audioBuffer = ShortArray(audioBufferSize)
-
-    companion object {
-        private const val SAMPLE_RATE = 44100 // 44.1 kHz
-        private const val CHANNEL_CONFIG = AudioFormat.CHANNEL_IN_MONO
-        private const val AUDIO_FORMAT = AudioFormat.ENCODING_PCM_16BIT
-        private const val TAG = "AudioRecognizer"
-    }
-
     fun startRecognition() {
-        if (ActivityCompat.checkSelfPermission(
-                context,
-                Manifest.permission.RECORD_AUDIO
-            ) != PackageManager.PERMISSION_GRANTED
-        ) {
-            Log.e(TAG, "RECORD_AUDIO permission not granted. Cannot start audio recognition.")
-            return
-        }
-
-
-        if (isRecording) {
-            Log.d(TAG, "Audio recognition already running.")
-            return
-        }
-
-        audioRecord = AudioRecord(
-            MediaRecorder.AudioSource.MIC,
-            SAMPLE_RATE,
-            CHANNEL_CONFIG,
-            AUDIO_FORMAT,
-            audioBufferSize
-        )
-
-        if (audioRecord?.state != AudioRecord.STATE_INITIALIZED) {
-            Log.e(TAG, "AudioRecord initialization failed.")
-            return
-        }
-
+        val size = AudioRecord.getMinBufferSize(44100, AudioFormat.CHANNEL_IN_MONO, AudioFormat.ENCODING_PCM_16BIT)
+        if (ActivityCompat.checkSelfPermission(context, Manifest.permission.RECORD_AUDIO) != PackageManager.PERMISSION_GRANTED) return
+        audioRecord = AudioRecord(MediaRecorder.AudioSource.MIC, 44100, AudioFormat.CHANNEL_IN_MONO, AudioFormat.ENCODING_PCM_16BIT, size)
         audioRecord?.startRecording()
         isRecording = true
-
-        Thread { // Run audio processing in a background thread
+        Thread {
+            val buffer = ShortArray(size)
             while (isRecording) {
-                val shortsRead = audioRecord?.read(audioBuffer, 0, audioBufferSize) ?: 0
-                if (shortsRead > 0) {
-                    val rms = calculateRms(audioBuffer, shortsRead)
-                    val db = 20 * log10(rms / REFERENCE_AMPLITUDE)
-
-                    Log.d(TAG, "Current dB: %.2f".format(db))
-
-                    if (db > noiseThresholdDb) {
-                        Log.d(TAG, "Shot detected! dB: %.2f".format(db))
-                        Handler(Looper.getMainLooper()).post { onShotDetected() }
-                        // To prevent multiple detections from a single shot, stop temporarily
-                        // stopRecognition() // Will restart when timerState goes to RUNNING again
+                val read = audioRecord?.read(buffer, 0, size) ?: 0
+                if (read > 0) {
+                    val rms = sqrt(buffer.take(read).map { (it * it).toDouble() }.average())
+                    val db = 20 * log10(rms / 32767.0)
+                    Log.v("AudioRecognizer", "Current dB: $db")
+                    if (db > threshold) {
+                        Log.d("AudioRecognizer", "Shot detected! dB: $db")
+                        Handler(Looper.getMainLooper()).post { onShot() }
                     }
                 }
             }
         }.start()
-        Log.d(TAG, "Audio recognition started.")
     }
-
     fun stopRecognition() {
         isRecording = false
-        audioRecord?.apply {
-            if (state == AudioRecord.RECORDSTATE_RECORDING) {
-                stop()
-            }
-            release()
-        }
-        audioRecord = null
-        Log.d(TAG, "Audio recognition stopped.")
+        audioRecord?.apply { if (state == AudioRecord.RECORDSTATE_RECORDING) stop(); release() }
     }
-
-    private fun calculateRms(buffer: ShortArray, shortsRead: Int): Double {
-        var sum = 0.0
-        for (i in 0 until shortsRead) {
-            sum += buffer[i] * buffer[i]
-        }
-        return if (shortsRead > 0) sqrt(sum / shortsRead) else 0.0
-    }
-
-    private val REFERENCE_AMPLITUDE = 32767.0 // Max amplitude for PCM 16-bit
-}
-
-@WearPreviewDevices
-@Composable
-fun DefaultPreview() {
-    WearApp(onPlayBeep = {}, onStartAudioRecognition = { _ -> }, onStopAudioRecognition = {}, onStartAccelerometerRecognition = { _ -> }, onStopAccelerometerRecognition = {}, onReleaseMediaPlayer = {})
 }

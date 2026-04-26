@@ -10,10 +10,10 @@ class MessageService : WearableListenerService() {
         super.onMessageReceived(messageEvent)
 
         // Check for the correct message path
-        if (messageEvent.path == "/ping_path") {
+        if (messageEvent.path == "/ping_path" || messageEvent.path == "/shot_time") {
             // Decode the message
             val message = String(messageEvent.data)
-            Log.d("MessageService", "Received message: $message from node: ${messageEvent.sourceNodeId}")
+            Log.d("MessageService", "Received message: $message from path: ${messageEvent.path}")
         }
     }
 }

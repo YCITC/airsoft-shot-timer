@@ -49,7 +49,7 @@ This phase focuses on building the main functionalities as defined in the spec.
     -   **Verification:** Run the timer and flick your wrist. The timer should stop and display the elapsed time.
     -   **Dependencies:** Task 3.
 
--   **[ ] Task 6: [Watch] Integrate Detection Modes & Send Data**
+-   [x] **Task 6: [Watch] Integrate Detection Modes & Send Data**
     -   **Description:** Add a simple settings UI on the watch to allow the user to switch between "Microphone" and "Accelerometer" modes. After the timer is stopped by either method, the final time result is sent to the phone via the Data Layer.
     -   **Acceptance Criteria:** The detection mode can be changed. The final time is successfully transmitted to the phone.
     -   **Verification:** Check the phone's Logcat for the correctly formatted time data (e.g., "0.89") after a successful shot detection on the watch.
