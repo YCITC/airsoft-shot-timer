@@ -61,7 +61,7 @@ This phase focuses on building the main functionalities as defined in the spec.
     -   **Verification:** Write a simple unit test that inserts a record, reads it back, and confirms the data is correct.
     -   **Dependencies:** Task 1.
 
--   **[ ] Task 8: [Phone] Implement History List UI**
+-   **[x] Task 8: [Phone] Implement History List UI**
     -   **Description:** Create the main screen of the phone app. It will fetch all records from the Room database and display them in a reverse chronological list using Jetpack Compose.
     -   **Acceptance Criteria:** The phone app displays a list of all shot records stored in the database.
     -   **Verification:** Manually add a few records to the database (via test or code) and verify they appear correctly on the screen.
