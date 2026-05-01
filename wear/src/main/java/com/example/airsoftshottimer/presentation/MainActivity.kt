@@ -33,12 +33,11 @@ import androidx.compose.runtime.DisposableEffect
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.core.app.ActivityCompat
-import androidx.wear.compose.ui.tooling.preview.WearPreviewDevices
 import com.google.android.gms.wearable.Wearable
 import com.example.airsoftshottimer.presentation.theme.AirsoftShotTimerTheme
+import java.util.Locale
 import com.example.airsoftshottimer.presentation.pages.TimerPage
 import com.example.airsoftshottimer.presentation.pages.SettingsPage
-import com.example.airsoftshottimer.presentation.pages.ResetPage
 import kotlin.math.abs
 import kotlin.math.log10
 import kotlin.math.sin
@@ -52,7 +51,7 @@ class MainActivity : ComponentActivity() {
     private var startTime: Long = 0
 
     private fun sendShotTime(time: Double) {
-        val message = String.format("%.2f", time)
+        val message = String.format(Locale.US, "%.2f", time)
         val messageClient = Wearable.getMessageClient(this)
         Wearable.getNodeClient(this).connectedNodes.addOnSuccessListener { nodes ->
             for (node in nodes) {
@@ -64,11 +63,11 @@ class MainActivity : ComponentActivity() {
 
     private fun getVibrator(): Vibrator {
         return if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
-            val vibratorManager = getSystemService(Context.VIBRATOR_MANAGER_SERVICE) as VibratorManager
+            val vibratorManager = getSystemService(VIBRATOR_MANAGER_SERVICE) as VibratorManager
             vibratorManager.defaultVibrator
         } else {
             @Suppress("DEPRECATION")
-            getSystemService(Context.VIBRATOR_SERVICE) as Vibrator
+            getSystemService(VIBRATOR_SERVICE) as Vibrator
         }
     }
 
@@ -76,7 +75,7 @@ class MainActivity : ComponentActivity() {
         try {
             getVibrator().vibrate(effect)
         } catch (e: Exception) {
-            Log.e("MainActivity", "Vibration failed: ${e.message}")
+            Log.e("MainActivityTid", "Vibration failed: ${e.message}")
         }
     }
 
@@ -132,8 +131,7 @@ class MainActivity : ComponentActivity() {
             WearApp(
                 viewModel = viewModel,
                 onStartDetection = { startDetection() },
-                onStopDetection = { stopDetection() },
-                onSendTime = { sendShotTime(it) }
+                onStopDetection = { stopDetection() }
             )
         }
     }
@@ -159,13 +157,9 @@ class MainActivity : ComponentActivity() {
             viewModel.elapsedTime = System.currentTimeMillis() - startTime
             stopDetection()
             
-            // 偵測到射擊時：發出雙擊震動
-            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
-                performVibration(VibrationEffect.createPredefined(VibrationEffect.EFFECT_DOUBLE_CLICK))
-            } else {
-                performVibration(VibrationEffect.createOneShot(200, VibrationEffect.DEFAULT_AMPLITUDE))
-            }
-            
+            // 偵測到射擊時：發出震動
+            performVibration(VibrationEffect.createOneShot(500, VibrationEffect.DEFAULT_AMPLITUDE))
+
             sendShotTime(viewModel.elapsedTime / 1000.0)
         }
     }
@@ -174,8 +168,7 @@ class MainActivity : ComponentActivity() {
     fun WearApp(
         viewModel: ShotTimerViewModel,
         onStartDetection: () -> Unit,
-        onStopDetection: () -> Unit,
-        onSendTime: (Double) -> Unit
+        onStopDetection: () -> Unit
     ) {
         val pagerState = rememberPagerState(pageCount = { 2 })
 

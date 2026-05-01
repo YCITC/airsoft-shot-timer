@@ -16,6 +16,7 @@ import androidx.wear.compose.material3.Button
 import androidx.wear.compose.material3.Text
 import com.example.airsoftshottimer.presentation.ShotTimerViewModel
 import com.example.airsoftshottimer.presentation.TimerState
+import java.util.Locale
 
 @Composable
 fun TimerPage(
@@ -31,8 +32,8 @@ fun TimerPage(
             text = when (viewModel.timerState) {
                 TimerState.IDLE -> "START"
                 TimerState.DELAYING -> "Delaying..."
-                TimerState.RUNNING -> String.format("%.2f", viewModel.elapsedTime / 1000.0) + "s"
-                TimerState.STOPPED -> String.format("%.2f", viewModel.elapsedTime / 1000.0) + "s"
+                TimerState.RUNNING -> String.format(Locale.US, "%.2f", viewModel.elapsedTime / 1000.0) + "s"
+                TimerState.STOPPED -> String.format(Locale.US, "%.2f", viewModel.elapsedTime / 1000.0) + "s"
             },
             fontSize = 48.sp,
             fontWeight = FontWeight.Bold
