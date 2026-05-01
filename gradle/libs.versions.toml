@@ -10,7 +10,9 @@ material = "1.10.0"
 activityKtx = "1.8.0"
 constraintlayout = "2.1.4"
 kotlin = "2.2.10"
-composeBom = "2025.12.00"
+ksp = "2.2.10-2.0.2"
+room = "2.8.4"
+composeBom = "2024.04.01"
 composeMaterial3 = "1.6.0"
 composeFoundation = "1.6.0"
 composeUiTooling = "1.6.0"
@@ -57,8 +59,13 @@ guava = { group = "com.google.guava", name = "guava", version.ref = "guava" }
 androidx-tiles-tooling = { group = "androidx.wear.tiles", name = "tiles-tooling", version.ref = "tilesTooling" }
 androidx-tiles-tooling-preview = { group = "androidx.wear.tiles", name = "tiles-tooling-preview", version.ref = "tilesToolingPreview" }
 androidx-watchface-complications-data-source-ktx = { group = "androidx.wear.watchface", name = "watchface-complications-data-source-ktx", version.ref = "watchfaceComplicationsDataSourceKtx" }
+room-runtime = { group = "androidx.room", name = "room-runtime", version.ref = "room" }
+room-compiler = { group = "androidx.room", name = "room-compiler", version.ref = "room" }
+room-ktx = { group = "androidx.room", name = "room-ktx", version.ref = "room" }
 
 [plugins]
 android-application = { id = "com.android.application", version.ref = "agp" }
+kotlin-android = { id = "org.jetbrains.kotlin.android", version.ref = "kotlin" }
 kotlin-compose = { id = "org.jetbrains.kotlin.plugin.compose", version.ref = "kotlin" }
+ksp = { id = "com.google.devtools.ksp", version.ref = "ksp" }
 
