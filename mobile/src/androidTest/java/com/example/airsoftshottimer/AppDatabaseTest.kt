@@ -45,4 +45,22 @@ class AppDatabaseTest {
         val allShots = shotDao.getAll().first()
         assertEquals(allShots[0].time, 0.85f)
     }
+
+    @Test
+    @Throws(Exception::class)
+    fun getBestShot_returnsRecordWithMinimumTime() = runBlocking {
+        shotDao.insert(ShotRecord(timestamp = 1000L, time = 1.0f))
+        shotDao.insert(ShotRecord(timestamp = 2000L, time = 0.5f))
+        shotDao.insert(ShotRecord(timestamp = 3000L, time = 0.75f))
+
+        val best = shotDao.getBestShot().first()
+        assertEquals(0.5f, best?.time)
+    }
+
+    @Test
+    @Throws(Exception::class)
+    fun getBestShot_returnsNullWhenEmpty() = runBlocking {
+        val best = shotDao.getBestShot().first()
+        assertEquals(null, best)
+    }
 }

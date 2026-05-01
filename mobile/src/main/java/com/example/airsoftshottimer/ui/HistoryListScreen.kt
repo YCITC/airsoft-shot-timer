@@ -1,5 +1,6 @@
 package com.example.airsoftshottimer.ui
 
+import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -30,6 +31,8 @@ import java.util.Locale
 @Composable
 fun HistoryListScreen(viewModel: HistoryViewModel = viewModel()) {
     val shots by viewModel.shots.collectAsState()
+    val bestShot by viewModel.bestShot.collectAsState()
+    val bestId = bestShot?.id
 
     Scaffold(
         topBar = {
@@ -52,7 +55,7 @@ fun HistoryListScreen(viewModel: HistoryViewModel = viewModel()) {
                     .padding(paddingValues)
             ) {
                 items(shots, key = { it.id }) { shot ->
-                    ShotItem(shot = shot)
+                    ShotItem(shot = shot, isBest = shot.id == bestId)
                     HorizontalDivider()
                 }
             }
@@ -61,13 +64,16 @@ fun HistoryListScreen(viewModel: HistoryViewModel = viewModel()) {
 }
 
 @Composable
-private fun ShotItem(shot: ShotRecord) {
+private fun ShotItem(shot: ShotRecord, isBest: Boolean = false) {
     val dateStr = SimpleDateFormat("yyyy-MM-dd HH:mm:ss", Locale.getDefault())
         .format(Date(shot.timestamp))
+    val backgroundColor = if (isBest) MaterialTheme.colorScheme.primaryContainer
+                          else MaterialTheme.colorScheme.surface
 
     Column(
         modifier = Modifier
             .fillMaxWidth()
+            .background(backgroundColor)
             .padding(horizontal = 16.dp, vertical = 12.dp),
         verticalArrangement = Arrangement.spacedBy(4.dp)
     ) {

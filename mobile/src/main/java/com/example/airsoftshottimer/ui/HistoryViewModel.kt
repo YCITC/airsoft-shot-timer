@@ -14,4 +14,7 @@ class HistoryViewModel(application: Application) : AndroidViewModel(application)
 
     val shots: StateFlow<List<ShotRecord>> = dao.getAll()
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyList())
+
+    val bestShot: StateFlow<ShotRecord?> = dao.getBestShot()
+        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), null)
 }

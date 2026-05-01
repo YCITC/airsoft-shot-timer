@@ -67,12 +67,12 @@ This phase focuses on building the main functionalities as defined in the spec.
     -   **Verification:** Manually add a few records to the database (via test or code) and verify they appear correctly on the screen.
     -   **Dependencies:** Task 7.
 
--   **[ ] Task 9: [Phone] Implement Best Score Highlighting**
+-   **[x] Task 9: [Phone] Implement Best Score Highlighting**
     -   **Description:** Add logic to the data query or the UI to find the `ShotRecord` with the minimum time. In the Compose UI, apply a visually distinct style to this list item.
     -   **Acceptance Criteria:** The list item corresponding to the fastest shot time has a different background color.
     -   **Verification:** Ensure that among a list of various times, only the fastest one is highlighted. If a new, faster time is added, the highlight moves to the new record.
     -   **Dependencies:** Task 8.
 
 ### Checkpoint: Complete
--   [ ] All acceptance criteria for all tasks are met.
--   [ ] The app is ready for user testing and review.
+-   [x] All acceptance criteria for all tasks are met.
+-   [x] The app is ready for user testing and review.
