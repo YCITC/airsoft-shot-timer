@@ -1,19 +1,35 @@
-# Task 9 — Best Score Highlighting
+# Session-Based History — Todo
 
-## Checklist
+## Task 10: Data Model Migration ✅
+- [x] Add `sessionId: Long = 0L` and `location: String? = null` to `ShotRecord`
+- [x] Bump `AppDatabase` to version 2, add `MIGRATION_1_2`
+- [x] Update `ShotDao.getAll()` order to `sessionId DESC, timestamp DESC`
+- [x] Add `ShotDao.deleteBySession(sessionId: Long)`
+- [x] Add test: `deleteBySession` removes only target session records
+- [x] `./gradlew :mobile:build` passes
 
-- [x] **Step 1** — Add `bestShot: StateFlow<ShotRecord?>` to `HistoryViewModel`
-  - File: `mobile/src/main/java/com/example/airsoftshottimer/ui/HistoryViewModel.kt`
-  - Use `dao.getBestShot().stateIn(viewModelScope, WhileSubscribed(5000), null)`
+## Task 11: SessionManager + MessageService ✅
+- [x] Create `SessionManager` (SharedPreferences, auto-init on first launch)
+- [x] Add instrumented tests: currentSessionId persists, startNewSession() returns new value
+- [x] Update `MessageService` to pass `sessionId` when inserting `ShotRecord`
+- [x] `./gradlew :mobile:build` passes
 
-- [x] **Step 2** — Update `HistoryListScreen` to collect `bestShot`
-  - File: `mobile/src/main/java/com/example/airsoftshottimer/ui/HistoryListScreen.kt`
-  - Derive `bestId = bestShot?.id`
-  - Pass `isBest = (shot.id == bestId)` into each `ShotItem` call
+## Task 12: HistoryViewModel ✅
+- [x] Add `SessionManager` dependency to `HistoryViewModel`
+- [x] Replace `shots` with `groupedShots: StateFlow<List<Pair<Long, List<ShotRecord>>>>`
+- [x] Add `startNewSession()` delegating to `SessionManager`
+- [x] Add `deleteSession(sessionId: Long)` calling `dao.deleteBySession()`
+- [x] `./gradlew :mobile:build` passes
 
-- [x] **Step 3** — Update `ShotItem` to accept and apply `isBest`
-  - File: `mobile/src/main/java/com/example/airsoftshottimer/ui/HistoryListScreen.kt`
-  - Add `isBest: Boolean` parameter
-  - Apply `MaterialTheme.colorScheme.primaryContainer` background when `isBest == true`
-
-- [x] **Verify** — Build passes (`./gradlew :mobile:build` — BUILD SUCCESSFUL)
+## Task 13: UI ✅
+- [x] Add "開始新訓練" icon to TopAppBar, calls `viewModel.startNewSession()`
+- [x] Render session headers with formatted date from `sessionId`
+- [x] Render `ShotItem`s under each session header
+- [x] Implement swipe-to-reveal with `Animatable` + `draggable`
+  - [x] Left swipe reveals red "刪除" button
+  - [x] Partial swipe snaps back on release
+  - [x] Tap "刪除" calls `viewModel.deleteSession()`
+- [x] Keep global best score `★` highlight
+- [x] Empty state: "No shots recorded yet."
+- [x] `./gradlew :mobile:build` passes
+- [ ] Manual test: grouping / swipe-reveal / delete / new session all work
