@@ -37,6 +37,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalDensity
+import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.IntOffset
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.viewmodel.compose.viewModel
@@ -103,15 +104,17 @@ fun HistoryListScreen(viewModel: HistoryViewModel = viewModel()) {
     }
 }
 
+@Preview(showBackground = true, name = "SwipeToReveal Session Header")
 @Composable
 private fun SwipeToRevealSessionHeader(
     sessionId: Long,
-    onDelete: () -> Unit
+    onDelete: () -> Unit,
+    initialOffsetX: Float = 0f,
 ) {
     val density = LocalDensity.current
     val deleteWidthPx = with(density) { DELETE_BUTTON_WIDTH.toPx() }
     val scope = rememberCoroutineScope()
-    val offsetX = remember(sessionId) { Animatable(0f) }
+    val offsetX = remember(sessionId) { Animatable(initialOffsetX) }
 
     Box(modifier = Modifier.fillMaxWidth()) {
         // Delete button revealed behind
@@ -196,6 +199,17 @@ private fun SessionHeader(sessionId: Long, modifier: Modifier = Modifier) {
             color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.5f)
         )
     }
+}
+
+@Preview(showBackground = true, name = "SwipeToReveal - Swiped Open")
+@Composable
+private fun SwipeToRevealSessionHeaderOpenPreview() {
+    val offsetPx = with(LocalDensity.current) { -DELETE_BUTTON_WIDTH.toPx() }
+    SwipeToRevealSessionHeader(
+        sessionId = 1746115200000L,
+        onDelete = {},
+        initialOffsetX = offsetPx,
+    )
 }
 
 @Composable
