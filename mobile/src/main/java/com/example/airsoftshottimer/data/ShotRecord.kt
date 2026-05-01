@@ -7,5 +7,7 @@ import androidx.room.PrimaryKey
 data class ShotRecord(
     @PrimaryKey(autoGenerate = true) val id: Int = 0,
     val timestamp: Long,
-    val time: Float
+    val time: Float,
+    val sessionId: Long = 0L,
+    val location: String? = null
 )

@@ -9,7 +9,7 @@ import kotlinx.coroutines.flow.Flow
 
 @Dao
 interface ShotDao {
-    @Query("SELECT * FROM shot_records ORDER BY timestamp DESC")
+    @Query("SELECT * FROM shot_records ORDER BY sessionId DESC, timestamp DESC")
     fun getAll(): Flow<List<ShotRecord>>
 
     @Insert(onConflict = OnConflictStrategy.REPLACE)
@@ -17,7 +17,10 @@ interface ShotDao {
 
     @Delete
     suspend fun delete(record: ShotRecord)
-    
+
+    @Query("DELETE FROM shot_records WHERE sessionId = :sessionId")
+    suspend fun deleteBySession(sessionId: Long)
+
     @Query("SELECT * FROM shot_records ORDER BY time ASC LIMIT 1")
     fun getBestShot(): Flow<ShotRecord?>
 }

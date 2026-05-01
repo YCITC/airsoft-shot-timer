@@ -63,4 +63,38 @@ class AppDatabaseTest {
         val best = shotDao.getBestShot().first()
         assertEquals(null, best)
     }
+
+    @Test
+    @Throws(Exception::class)
+    fun deleteBySession_removesOnlyTargetSession() = runBlocking {
+        val sessionA = 1000L
+        val sessionB = 2000L
+        shotDao.insert(ShotRecord(timestamp = 100L, time = 0.5f, sessionId = sessionA))
+        shotDao.insert(ShotRecord(timestamp = 200L, time = 0.6f, sessionId = sessionA))
+        shotDao.insert(ShotRecord(timestamp = 300L, time = 0.7f, sessionId = sessionB))
+
+        shotDao.deleteBySession(sessionA)
+
+        val remaining = shotDao.getAll().first()
+        assertEquals(1, remaining.size)
+        assertEquals(sessionB, remaining[0].sessionId)
+    }
+
+    @Test
+    @Throws(Exception::class)
+    fun getAll_orderedBySessionIdDescThenTimestampDesc() = runBlocking {
+        val oldSession = 1000L
+        val newSession = 2000L
+        shotDao.insert(ShotRecord(timestamp = 100L, time = 0.9f, sessionId = oldSession))
+        shotDao.insert(ShotRecord(timestamp = 300L, time = 0.5f, sessionId = newSession))
+        shotDao.insert(ShotRecord(timestamp = 200L, time = 0.7f, sessionId = newSession))
+
+        val all = shotDao.getAll().first()
+        // newest session first (2000L), then within session timestamp DESC (300 before 200)
+        assertEquals(newSession, all[0].sessionId)
+        assertEquals(300L, all[0].timestamp)
+        assertEquals(newSession, all[1].sessionId)
+        assertEquals(200L, all[1].timestamp)
+        assertEquals(oldSession, all[2].sessionId)
+    }
 }
