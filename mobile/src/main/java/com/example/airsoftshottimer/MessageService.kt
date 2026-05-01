@@ -1,19 +1,28 @@
 package com.example.airsoftshottimer
 
 import android.util.Log
+import com.example.airsoftshottimer.data.AppDatabase
+import com.example.airsoftshottimer.data.ShotRecord
 import com.google.android.gms.wearable.MessageEvent
 import com.google.android.gms.wearable.WearableListenerService
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.launch
 
 class MessageService : WearableListenerService() {
 
     override fun onMessageReceived(messageEvent: MessageEvent) {
         super.onMessageReceived(messageEvent)
 
-        // Check for the correct message path
-        if (messageEvent.path == "/ping_path" || messageEvent.path == "/shot_time") {
-            // Decode the message
-            val message = String(messageEvent.data)
-            Log.d("MessageService", "Received message: $message from path: ${messageEvent.path}")
+        val message = String(messageEvent.data)
+        Log.d("MessageService", "Received message: $message from path: ${messageEvent.path}")
+
+        if (messageEvent.path == "/shot_time") {
+            val timeFloat = message.toFloatOrNull() ?: return
+            val record = ShotRecord(timestamp = System.currentTimeMillis(), time = timeFloat)
+            CoroutineScope(Dispatchers.IO).launch {
+                AppDatabase.getDatabase(applicationContext).shotDao().insert(record)
+            }
         }
     }
 }
