@@ -55,7 +55,7 @@ This phase focuses on building the main functionalities as defined in the spec.
     -   **Verification:** Check the phone's Logcat for the correctly formatted time data (e.g., "0.89") after a successful shot detection on the watch.
     -   **Dependencies:** Task 2, 4, 5.
 
--   **[ ] Task 7: [Phone] Setup Database with Room**
+-   **[x] Task 7: [Phone] Setup Database with Room**
     -   **Description:** Define the `ShotRecord` entity and create the Room database structure to store shot timings and timestamps.
     -   **Acceptance Criteria:** A Room database is configured. A `ShotRecord` can be successfully inserted, queried, and deleted.
     -   **Verification:** Write a simple unit test that inserts a record, reads it back, and confirms the data is correct.
