@@ -7,8 +7,10 @@ import android.hardware.Sensor
 import android.hardware.SensorEvent
 import android.hardware.SensorEventListener
 import android.hardware.SensorManager
+import android.media.AudioAttributes
 import android.media.AudioFormat
 import android.media.AudioRecord
+import android.media.AudioTrack
 import android.media.MediaRecorder
 import android.os.Build
 import android.os.Bundle
@@ -39,6 +41,7 @@ import com.example.airsoftshottimer.presentation.pages.SettingsPage
 import com.example.airsoftshottimer.presentation.pages.ResetPage
 import kotlin.math.abs
 import kotlin.math.log10
+import kotlin.math.sin
 import kotlin.math.sqrt
 
 class MainActivity : ComponentActivity() {
@@ -75,6 +78,47 @@ class MainActivity : ComponentActivity() {
         } catch (e: Exception) {
             Log.e("MainActivity", "Vibration failed: ${e.message}")
         }
+    }
+
+    private fun playBeep() {
+        Thread {
+            try {
+                val sampleRate = 44100
+                val duration = 200 // ms
+                val numSamples = duration * sampleRate / 1000
+                val samples = ShortArray(numSamples)
+                val frequency = 1000.0 // Hz
+
+                for (i in 0 until numSamples) {
+                    samples[i] = (sin(2.0 * Math.PI * i.toDouble() / (sampleRate / frequency)) * Short.MAX_VALUE).toInt().toShort()
+                }
+
+                val audioTrack = AudioTrack.Builder()
+                    .setAudioAttributes(
+                        AudioAttributes.Builder()
+                            .setUsage(AudioAttributes.USAGE_MEDIA)
+                            .setContentType(AudioAttributes.CONTENT_TYPE_SONIFICATION)
+                            .build()
+                    )
+                    .setAudioFormat(
+                        AudioFormat.Builder()
+                            .setEncoding(AudioFormat.ENCODING_PCM_16BIT)
+                            .setSampleRate(sampleRate)
+                            .setChannelMask(AudioFormat.CHANNEL_OUT_MONO)
+                            .build()
+                    )
+                    .setBufferSizeInBytes(samples.size * 2)
+                    .build()
+
+                audioTrack.play()
+                audioTrack.write(samples, 0, samples.size)
+                Thread.sleep(duration.toLong())
+                audioTrack.stop()
+                audioTrack.release()
+            } catch (e: Exception) {
+                Log.e("MainActivity", "AudioTrack failed: ${e.message}")
+            }
+        }.start()
     }
 
     override fun onCreate(savedInstanceState: Bundle?) {
@@ -173,9 +217,11 @@ class MainActivity : ComponentActivity() {
                     if (viewModel.timerState == TimerState.DELAYING) {
                         viewModel.timerState = TimerState.RUNNING
                         
-                        // 計時器啟動：發出強烈長震動 (代替 BEEP)
+                        // 計時器啟動：發出強烈長震動
                         performVibration(VibrationEffect.createOneShot(500, VibrationEffect.DEFAULT_AMPLITUDE))
-                        
+                        // 計時器啟動：發出 BEEP 聲
+                        playBeep()
+
                         onStart()
                     }
                 }, (1000..3000).random().toLong())
