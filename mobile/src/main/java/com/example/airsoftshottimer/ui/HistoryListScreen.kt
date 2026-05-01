@@ -3,12 +3,14 @@ package com.example.airsoftshottimer.ui
 import androidx.compose.animation.core.Animatable
 import androidx.compose.animation.core.tween
 import androidx.compose.foundation.background
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.gestures.Orientation
 import androidx.compose.foundation.gestures.draggable
 import androidx.compose.foundation.gestures.rememberDraggableState
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.offset
@@ -25,7 +27,6 @@ import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
-import androidx.compose.material3.TextButton
 import androidx.compose.material3.TopAppBar
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.collectAsState
@@ -120,15 +121,25 @@ private fun SwipeToRevealSessionHeader(
                 .matchParentSize()
                 .align(Alignment.CenterEnd)
                 .background(Color(0xFFD32F2F)),
-            contentAlignment = Alignment.Center
+            contentAlignment = Alignment.CenterEnd
         ) {
-            TextButton(onClick = {
-                scope.launch {
-                    offsetX.animateTo(0f, tween(150))
-                    onDelete()
-                }
-            }) {
-                Text("刪除", color = Color.White, style = MaterialTheme.typography.labelLarge)
+            Box(
+                modifier = Modifier
+                    .fillMaxHeight()
+                    .width(80.dp)
+                    .clickable {
+                        scope.launch {
+                            offsetX.animateTo(0f, tween(150))
+                            onDelete()
+                        }
+                    },
+                contentAlignment = Alignment.Center
+            ) {
+                Text(
+                    "刪除",
+                    color = Color.White,
+                    style = MaterialTheme.typography.labelLarge
+                )
             }
         }
 
