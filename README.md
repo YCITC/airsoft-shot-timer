@@ -79,13 +79,20 @@ airsoft-shot-timer/
 - [x] Task 4: Microphone-based shot detection
 - [x] Task 5: Accelerometer-based shot detection
 - [x] Task 6: Detection mode settings UI + send result to phone
-- [ ] Task 7: Room database setup on phone (`ShotRecord` entity, DAO, DB class)
-- [ ] Task 8: History list UI on phone (Jetpack Compose, reverse chronological)
-- [ ] Task 9: Best score highlighting
+- [x] Task 7: Room database setup on phone (`ShotRecord` entity, DAO, DB class)
+- [x] Task 8: History list UI on phone (Jetpack Compose, reverse chronological)
+- [x] Task 9: Best score highlighting
+
+### Phase 3 — Session-Based History
+- [x] Task 10: Add `sessionId` to `ShotRecord` + Room migration v2
+- [x] Task 11: `SessionManager` — creates/stores current session, wired into `MessageService`
+- [x] Task 12: Session-grouped history UI with swipe-to-reveal delete (per session)
+- [x] Task 13: Swipe-to-reveal hit area refinement + Compose preview
 
 ## Future Milestones
 
 - Multi-shot split time tracking
-- Session management (named sessions)
 - Data export as CSV
 - Calibration screen for mic sensitivity and accelerometer thresholds
+- Session custom naming
+- Per-session best score / cross-session statistics
